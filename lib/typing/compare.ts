@@ -28,6 +28,13 @@ export type TextComparison = {
   overflow: number;
   /** 확정적으로 틀린 위치. 조합 중인 글자는 들어가지 않는다. */
   wrongIndexes: number[];
+  /**
+   * 같은 판정을 입력 자리로 옮긴 것. `input`의 k번째 글자가 어떤 상태인가.
+   *
+   * 화면이 목표 줄과 입력 줄을 따로 그리기 때문에 두 벌이 필요하다. 옮기는 일은
+   * 기호를 건너뛰는 색인을 아는 이곳이 맡는다 — 화면이 하면 화면마다 다시 짠다.
+   */
+  inputStates: CharState[];
   /** 입력이 목표와 완전히 같은가 */
   done: boolean;
   /**
@@ -81,8 +88,12 @@ export function compareText(
   for (let k = 0; k < shared; k++) {
     const i = typable.at[k];
     if (k === composingSlot) {
-      // 조합 중인 글자는 목표가 될 수 있는 한 중립으로 두고 오타로 세지 않는다.
-      states[i] = canBecome(inputChars[k], typable.chars[k], nextOf(k)) ? "composing" : "wrong";
+      // 조합이 아직 열려 있어도 지금 글자가 목표와 같으면 다 친 것으로 본다. 화면은
+      // 목표와 입력을 위아래로 따로 그리므로, 목표 줄은 "만들어지는 중"을 말할 필요
+      // 없이 다 쳤는가만 말하면 된다. (강을 ㄱ·ㅏ까지 치면 아직, ㅇ까지 치면 검게)
+      if (inputChars[k] === typable.chars[k]) states[i] = "correct";
+      // 아직 목표가 될 수 있는 동안은 중립으로 두고 오타로 세지 않는다.
+      else states[i] = canBecome(inputChars[k], typable.chars[k], nextOf(k)) ? "composing" : "wrong";
       continue;
     }
     if (inputChars[k] === typable.chars[k]) {
@@ -127,8 +138,14 @@ export function compareText(
     }
   }
 
+  // 넘겨 친 글자는 목표에 자리가 없다. 입력 줄에서 붉게 드러나야 하므로 오타로 둔다.
+  const inputStates = inputChars.map((_, k) =>
+    k < typable.chars.length ? states[typable.at[k]] : ("wrong" as CharState),
+  );
+
   return {
     states,
+    inputStates,
     // 커서는 다음에 칠 글자 위에 선다. 기호를 지나쳐 그 너머에 놓인다.
     caretIndex: typable.at[inputChars.length] ?? targetChars.length,
     attempted: shared,

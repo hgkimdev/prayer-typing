@@ -30,6 +30,9 @@
   --color-char-wrong: var(--char-wrong);
   --color-char-composing: var(--char-composing);
 
+  --color-gauge-empty: var(--gauge-empty);
+  --color-gauge-lit: var(--gauge-lit);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-prayer: var(--prayer-stack);
@@ -72,6 +75,15 @@
   --char-correct: oklch(0.3 0.015 65);
   --char-wrong: oklch(0.55 0.19 27);
   --char-composing: oklch(0.55 0.11 250);
+
+  /*
+   * 호흡 게이지. 빈 칸은 스테인드글라스의 납선, 켜진 칸은 금 한 가지다.
+   *
+   * 높이에 따라 빛깔을 갈아입히면 게이지가 오르내릴 때마다 바 전체가 색을 바꾼다 —
+   * 기도문 옆에 두기에는 너무 시끄럽다. 남은 칸 수만으로 충분히 말이 된다.
+   */
+  --gauge-empty: oklch(0.91 0.008 80);
+  --gauge-lit: oklch(0.78 0.13 88);
 }
 
 .dark {
@@ -99,6 +111,9 @@
   --char-correct: oklch(0.93 0.008 85);
   --char-wrong: oklch(0.68 0.17 25);
   --char-composing: oklch(0.75 0.12 250);
+
+  --gauge-empty: oklch(0.26 0.016 265);
+  --gauge-lit: oklch(0.82 0.13 90);
 }
 
 @layer base {

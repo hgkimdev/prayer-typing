@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { InputLine } from "@/components/typing/input-line";
 import { TypingLine } from "@/components/typing/typing-line";
 import { composingChar } from "@/lib/typing/dubeolsik";
 import { useTypingSession } from "@/lib/typing/use-typing-session";
@@ -34,7 +35,7 @@ const SAMPLES: { label: string; hint: string; lines: string[] }[] = [
   },
   {
     label: "줄 경계",
-    hint: "앞 줄이 한글로 끝나고 다음 줄이 모음으로 시작한다. 연음이 줄을 넘는 자리",
+    hint: "줄마다 입력이 끊긴다. 앞 줄의 받침은 다음 줄로 넘어가지 않아야 한다",
     lines: ["주님께서 함께 계시니", "여인 중에 복되시며"],
   },
   {
@@ -71,7 +72,8 @@ export default function LabPage() {
         <p className="text-muted-foreground mt-1 text-sm">
           OS의 IME를 타지 않고 물리 키를 직접 받아 글자를 만든다. 한/영 모드와 무관하게
           똑같이 동작해야 한다 — 지금 쳐야 할 글자가 한글이면 자모로, 영문이면 알파벳으로
-          읽는다. 조합 중인 칸에는 목표 대신 지금 만들어진 글자가 그대로 보인다.
+          읽는다. 한 줄을 끝까지 치고 엔터를 누르면 다음 줄로 간다. 만들어지는 중인
+          글자는 아래 입력 줄에 보인다.
         </p>
       </header>
 
@@ -102,19 +104,13 @@ export default function LabPage() {
         aria-label="타자 입력"
         className="bg-card focus:border-ring relative cursor-text rounded-xl border p-6 outline-none"
       >
-        <div className="space-y-3">
-          {session.lines.map((line, i) => (
-            <TypingLine
-              key={i}
-              target={line.text}
-              states={line.states}
-              composed={line.composed}
-              active={line.active}
-              caretIndex={line.caretIndex}
-              overflow={line.overflow}
-            />
-          ))}
+        <div className="space-y-4">
+          <TypingLine target={session.line.text} states={session.line.states} />
+          <InputLine input={session.line.input} states={session.line.inputStates} />
         </div>
+        <p className="text-muted-foreground mt-3 text-right text-xs">
+          {session.finished ? "끝" : session.line.complete ? "엔터를 누르면 다음 줄" : ""}
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
@@ -141,26 +137,24 @@ export default function LabPage() {
       <pre className="bg-muted text-muted-foreground mt-6 overflow-x-auto rounded-lg p-4 text-xs">
         {JSON.stringify(
           {
-            line: session.lineIndex,
-            text: session.text,
+            줄: `${session.line.index + 1} / ${session.lineCount}`,
+            입력: session.line.input,
             // 오토마타가 지금 무엇을 들고 있는지. 여기가 곧 진실이다.
             조합: { 초성: ime.cho, 중성: ime.jung, 종성: ime.jong, 글자: composingChar(ime) },
             확정: ime.committed,
-            줄판정: session.lines.map((l) =>
-              l.states
-                .map((s) => ({ pending: ".", correct: "o", wrong: "X", composing: "~" })[s])
-                .join(""),
-            ),
-            넘겨친글자: session.lines.at(-1)?.overflow ?? 0,
+            목표판정: session.line.states
+              .map((s) => ({ pending: ".", correct: "o", wrong: "X", composing: "~" })[s])
+              .join(""),
+            입력판정: session.line.inputStates
+              .map((s) => ({ pending: ".", correct: "o", wrong: "X", composing: "~" })[s])
+              .join(""),
             자모: Object.fromEntries(
-              session.lines.flatMap((l, i) =>
-                Object.entries(l.jamoCells).map(([index, steps]) => [
-                  `${i}:${index}`,
-                  steps
-                    .map((s) => s.jamo + { done: "o", partial: "~", pending: ".", wrong: "X" }[s.state])
-                    .join(" "),
-                ]),
-              ),
+              Object.entries(session.line.jamoCells).map(([index, steps]) => [
+                index,
+                steps
+                  .map((s) => s.jamo + { done: "o", partial: "~", pending: ".", wrong: "X" }[s.state])
+                  .join(" "),
+              ]),
             ),
           },
           null,

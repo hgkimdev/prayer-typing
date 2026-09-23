@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { InputLine } from "@/components/typing/input-line";
+import { RhythmGauge } from "@/components/typing/rhythm-gauge";
 import { TypingLine } from "@/components/typing/typing-line";
 import { segmentAt, type Course } from "@/lib/prayers";
+import { rhythmGrade } from "@/lib/typing/rhythm";
 import { useTypingSession } from "@/lib/typing/use-typing-session";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +21,6 @@ function formatDuration(ms: number): string {
 export function PracticeSession({ course }: { course: Course }) {
   const session = useTypingSession(course.lines);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
 
   const focus = () => surfaceRef.current?.focus();
@@ -28,18 +30,9 @@ export function PracticeSession({ course }: { course: Course }) {
     surfaceRef.current?.focus();
   }, []);
 
-  // 줄이 바뀌면 그 줄을 눈 높이로 끌어온다. 긴 기도문은 화면을 넘기 때문에
-  // 손으로 스크롤하게 두면 연습이 끊긴다.
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "center" });
-  }, [session.lineIndex]);
-
-  const segment = segmentAt(course, session.lineIndex);
-  const progress = session.finished
-    ? 1
-    : course.lines.length === 0
-      ? 0
-      : session.lineIndex / course.lines.length;
+  const { line, stats } = session;
+  const segment = segmentAt(course, line.index);
+  const progress = session.finished ? 1 : course.lines.length === 0 ? 0 : line.index / course.lines.length;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
@@ -76,7 +69,7 @@ export function PracticeSession({ course }: { course: Course }) {
         </div>
         <div className="text-muted-foreground mt-2 flex items-center justify-between text-xs">
           <span>
-            {Math.min(session.lineIndex + 1, course.lines.length)} / {course.lines.length}줄
+            {Math.min(line.index + 1, course.lines.length)} / {course.lines.length}줄
           </span>
           {/* 묶음은 지금 어느 기도문의 몇 번째인지가 따로 필요하다. */}
           {course.composite && segment && (
@@ -107,43 +100,47 @@ export function PracticeSession({ course }: { course: Course }) {
           focused && "border-ring",
         )}
       >
-        <div className="max-h-[22rem] space-y-3 overflow-y-auto py-2">
-          {session.lines.map((line, i) => (
-            <div key={i} ref={line.active ? activeRef : undefined}>
-              <TypingLine
-                target={line.text}
-                states={line.states}
-                composed={line.composed}
-                active={line.active}
-                caretIndex={line.caretIndex}
-                overflow={line.overflow}
-              />
-            </div>
-          ))}
+        {/* 위는 따라 칠 줄, 아래는 내가 치는 줄. 한 번에 한 줄만 본다. */}
+        <div className="space-y-4">
+          <TypingLine target={line.text} states={line.states} />
+          <InputLine
+            input={line.input}
+            states={line.inputStates}
+            caret={focused && !session.finished}
+          />
         </div>
 
-        {/* 손을 뗀 동안만 가린다. 아직 시작 전이라면 가리지 않고 안내만 둔다. */}
+        <div className="text-muted-foreground mt-3 h-4 text-right text-xs">
+          {session.finished
+            ? "다 옮겼습니다"
+            : line.complete
+              ? "엔터를 누르면 다음 줄"
+              : line.started
+                ? ""
+                : "첫 글자를 치면 시작합니다"}
+        </div>
+
+        {/* 손을 뗀 동안만 가린다. */}
         {!focused && !session.finished && (
           <div className="bg-card/80 absolute inset-0 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
             <span className="text-muted-foreground text-sm">클릭하면 이어서 칩니다</span>
           </div>
         )}
-        {focused && !session.started && !session.finished && (
-          <div className="text-muted-foreground pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs">
-            첫 글자를 치면 시작합니다
-          </div>
-        )}
       </div>
+
+      {/* 줄과 줄 사이에는 게이지도 멈춘다. 쉬는 동안 깎이면 끊어 치는 뜻이 없어진다. */}
+      <RhythmGauge beats={session.beats} live={line.started && !session.finished} attempt={session.attempt} />
 
       {session.finished ? (
         <div className="bg-card mt-4 rounded-xl border p-6">
           <h2 className="font-semibold">다 옮겼습니다</h2>
-          <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
             {[
-              ["정확도", `${Math.round(session.stats.accuracy * 100)}%`],
-              ["분당 글자", `${session.stats.cpm}자`],
-              ["걸린 시간", formatDuration(session.stats.elapsedMs)],
-              ["오타", `${session.stats.wrongCount}곳`],
+              ["호흡", stats.breath === null ? "—" : rhythmGrade(stats.breath)],
+              ["정확도", `${Math.round(stats.accuracy * 100)}%`],
+              ["분당 글자", `${stats.cpm}자`],
+              ["걸린 시간", formatDuration(stats.elapsedMs)],
+              ["오타", `${stats.wrongCount}곳`],
             ].map(([label, value]) => (
               <div key={label}>
                 <dt className="text-muted-foreground text-xs">{label}</dt>
@@ -173,14 +170,12 @@ export function PracticeSession({ course }: { course: Course }) {
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
           <span className="tabular-nums">
-            정확도 <strong>{Math.round(session.stats.accuracy * 100)}%</strong>
+            정확도 <strong>{Math.round(stats.accuracy * 100)}%</strong>
           </span>
           <span className="tabular-nums">
-            분당 <strong>{session.stats.cpm}</strong>자
+            분당 <strong>{stats.cpm}</strong>자
           </span>
-          <span className="text-muted-foreground tabular-nums">
-            오타 {session.stats.wrongCount}
-          </span>
+          <span className="text-muted-foreground tabular-nums">오타 {stats.wrongCount}</span>
           <button
             type="button"
             onClick={() => {
