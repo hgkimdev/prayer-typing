@@ -1,10 +1,10 @@
-import { imeText, isComposing, pressBackspace, pressLiteral, type ImeState } from "./dubeolsik";
-
 /**
- * 목표에 놓인 기호는 치지 않아도 채워진다.
+ * 기호는 치지 않는다.
  *
  * 기도문을 외듯 옮겨 적는 것이 목적이라, 마침표 자리를 더듬는 일은 연습이 아니라 방해다.
- * 한글과 영문만 손으로 치고 나머지는 우리가 넣는다.
+ * 그렇다고 기호를 입력에 대신 끼워 넣지는 않는다 — 그러면 조합 중인 글자가 기호에
+ * 떠밀려 확정되고, 백스페이스가 자모 단위로 무르지 못한다. 입력은 손으로 친 글자만
+ * 담고, 기호는 화면에서만 채워진 것처럼 보이게 한다.
  */
 
 /** 글자도 숫자도 공백도 아니면 기호로 본다. 마침표·쉼표·따옴표·괄호. */
@@ -14,34 +14,31 @@ export function isPunctuation(ch: string | undefined): boolean {
   return ch !== undefined && PUNCTUATION.test(ch);
 }
 
-/**
- * 다음에 올 기호를 채워 넣는다. 연달아 붙어 있으면 연달아 채운다.
- *
- * 여기까지 한 글자도 틀리지 않았을 때만 채운다 — 오타 뒤에 기호를 덤으로 주지 않는다.
- * 조합 중인 글자가 목표와 같아야 하므로, 덜 만들어진 글자를 기호가 앞질러 확정시키는 일도 없다.
- */
-export function fillPunctuation(state: ImeState, target: string): ImeState {
-  const targetChars = [...target];
-  let next = state;
-  for (;;) {
-    const typed = [...imeText(next)];
-    const expected = targetChars[typed.length];
-    if (!isPunctuation(expected)) return next;
-    if (typed.some((ch, i) => ch !== targetChars[i])) return next;
-    next = pressLiteral(next, expected);
-  }
-}
+/** 목표에서 손으로 쳐야 할 글자만 남긴 것. 목표 자리와 오갈 수 있게 색인을 함께 든다. */
+export type Typable = {
+  /** 쳐야 할 글자들 */
+  chars: string[];
+  /** 이어 붙인 것. 입력과 통째로 견줄 때 쓴다. */
+  text: string;
+  /** `chars[k]`가 목표의 몇 번째 글자인가 */
+  at: number[];
+  /** 목표 `i`번째 앞에 놓인, 쳐야 할 글자의 수. 목표보다 한 칸 길다. */
+  before: number[];
+};
 
-/**
- * 백스페이스 한 번.
- *
- * 채워 넣은 기호는 내가 친 것이 아니니 무를 것도 없다. 지나쳐 그 앞 글자를 무른다 —
- * 안 그러면 한 번 눌러도 아무 일도 일어나지 않은 것처럼 보인다.
- */
-export function eraseOne(state: ImeState): ImeState {
-  let next = state;
-  while (!isComposing(next) && isPunctuation([...imeText(next)].at(-1))) {
-    next = pressBackspace(next);
+export function typableOf(target: string): Typable {
+  const targetChars = [...target];
+  const chars: string[] = [];
+  const at: number[] = [];
+  const before: number[] = [];
+
+  for (let i = 0; i < targetChars.length; i++) {
+    before.push(chars.length);
+    if (isPunctuation(targetChars[i])) continue;
+    chars.push(targetChars[i]);
+    at.push(i);
   }
-  return pressBackspace(next);
+  before.push(chars.length);
+
+  return { chars, text: chars.join(""), at, before };
 }
