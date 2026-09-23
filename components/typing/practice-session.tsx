@@ -128,8 +128,15 @@ export function PracticeSession({ course }: { course: Course }) {
         )}
       </div>
 
-      {/* 줄과 줄 사이에는 게이지도 멈춘다. 쉬는 동안 깎이면 끊어 치는 뜻이 없어진다. */}
-      <RhythmGauge beats={session.beats} live={line.started && !session.finished} attempt={session.attempt} />
+      {/*
+        줄과 줄 사이에는 게이지도 멈춘다. 쉬는 동안 깎이면 끊어 치는 뜻이 없어진다.
+        판 번호를 key로 준다 — 처음부터 다시 하면 게이지가 통째로 새로 태어난다.
+      */}
+      <RhythmGauge
+        key={session.attempt}
+        beats={session.beats}
+        live={line.started && !session.finished}
+      />
 
       {session.finished ? (
         <div className="bg-card mt-4 rounded-xl border p-6">
