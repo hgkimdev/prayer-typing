@@ -251,3 +251,40 @@ const JUNG_LEFT_TICK = "ㅓㅔㅕㅖㅝㅞ";
 export function hasLeftTick(jung: string): boolean {
   return JUNG_LEFT_TICK.includes(jung);
 }
+
+/**
+ * 자모를 음절로 합친다. 초성·중성이 다 있어야 음절이 되고,
+ * 하나만 있으면 그 낱자를 그대로 돌려준다. (조합 도중의 "ㄱ", "ㅏ")
+ */
+export function composeSyllable(
+  cho: string | null,
+  jung: string | null,
+  jong: string | null,
+): string {
+  if (cho && jung) {
+    const index =
+      (CHO.indexOf(cho) * JUNG_COUNT + JUNG.indexOf(jung)) * JONG_COUNT + JONG.indexOf(jong);
+    return String.fromCodePoint(SYLLABLE_BASE + index);
+  }
+  return cho ?? jung ?? "";
+}
+
+/** 두 모음이 하나로 합쳐지는가. ㅗ+ㅏ→ㅘ. 안 되면 null. */
+export function joinJung(first: string, second: string): string | null {
+  return JUNG_COMPOSE[first + second] ?? null;
+}
+
+/** 두 자음이 겹받침이 되는가. ㄱ+ㅅ→ㄳ. 안 되면 null. */
+export function joinJong(first: string, second: string): string | null {
+  return JONG_COMPOSE[first + second] ?? null;
+}
+
+/** 겹받침을 둘로 가른다. 홑받침이면 null. */
+export function splitJong(jong: string): [string, string] | null {
+  return JONG_PARTS[jong] ?? null;
+}
+
+/** 이 자음이 받침 자리에 올 수 있는가. ㄸ·ㅃ·ㅉ은 못 온다. */
+export function canBeJong(consonant: string): boolean {
+  return JONG.includes(consonant);
+}

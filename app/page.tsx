@@ -1,69 +1,66 @@
-import Image from "next/image";
+import Link from "next/link";
 
+import { allCourses, PRAYER_CATEGORIES, type Course } from "@/lib/prayers";
+
+/** 목록은 기도문이 바뀌지 않는 한 그대로다. 서버에서 한 번 그린다. */
 export default function Home() {
+  const courses = allCourses();
+  const groups = PRAYER_CATEGORIES.map((category) => ({
+    category,
+    courses: courses.filter((c) => c.category === category),
+  })).filter((g) => g.courses.length > 0);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
+      <header className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight">기도문 타자연습</h1>
+        <p className="text-muted-foreground mt-2">
+          손으로 옮겨 적으며 외웁니다. 한 줄을 다 치면 다음 줄로 넘어갑니다.
+        </p>
+      </header>
+
+      <div className="space-y-10">
+        {groups.map(({ category, courses }) => (
+          <section key={category}>
+            <h2 className="text-muted-foreground mb-3 text-sm font-medium">{category}</h2>
+            <ul className="space-y-2">
+              {courses.map((course) => (
+                <li key={course.id}>
+                  <CourseCard course={course} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function CourseCard({ course }: { course: Course }) {
+  return (
+    <Link
+      href={`/practice/${course.id}`}
+      className="bg-card hover:border-ring block rounded-xl border p-4 transition-colors"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-muted-foreground text-xs tabular-nums">Lv.{course.level}</span>
+        <span className="font-medium">{course.title}</span>
+        {course.latin && (
+          <span className="text-muted-foreground text-xs italic">{course.latin}</span>
+        )}
+        {course.unverified && (
+          <span
+            className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[0.7rem]"
+            title="공인 기도서와 아직 대조하지 않은 본문이다."
+          >
+            미검증
+          </span>
+        )}
+      </div>
+      <p className="text-muted-foreground mt-1.5 text-sm tabular-nums">
+        {course.stats.lineCount}줄 · {course.stats.charCount}자
+      </p>
+    </Link>
   );
 }

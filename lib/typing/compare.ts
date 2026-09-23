@@ -10,7 +10,7 @@ export type CharState =
   /** IME가 조합 중 — 아직 목표가 될 가능성이 남아 있다 */
   | "composing";
 
-export type LineComparison = {
+export type TextComparison = {
   states: CharState[];
   /** 목표 길이를 넘겨 친 글자 수 */
   overflow: number;
@@ -21,17 +21,25 @@ export type LineComparison = {
   /**
    * 자모 단위 진행도. 조합 중인 칸에만 들어간다.
    * 연음이 일어나면 다음 칸도 들어간다 — 받침이 이미 그쪽 초성으로 넘어갔기 때문에.
+   * 그 다음 칸이 다음 줄의 첫 글자일 수도 있다. 여기서는 줄을 구분하지 않는다.
    */
   jamoCells: Record<number, JamoStep[]>;
 };
 
 /**
- * 입력 한 줄을 목표 한 줄과 대조한다.
+ * 지금까지 친 글자를 목표 전체와 대조한다.
  *
- * 순수 함수라 브라우저 없이 검증할 수 있다. IME 이벤트 처리는 훅이 맡고,
+ * 기도문 한 편을 통째로 받는다. 줄은 화면에 나누어 보이는 방식일 뿐이라 여기서는
+ * 다루지 않는다 — 그 덕에 받침이 다음 줄 첫 글자로 넘어가는 연음도 그냥 "다음 글자"다.
+ *
+ * 순수 함수라 브라우저 없이 검증할 수 있다. 키 입력과 글자 만들기는 오토마타가 맡고,
  * 여기는 "지금 값이 이러면 화면이 이래야 한다"만 책임진다.
  */
-export function compareLine(input: string, target: string, isComposing: boolean): LineComparison {
+export function compareText(
+  input: string,
+  target: string,
+  isComposing: boolean,
+): TextComparison {
   const inputChars = [...input];
   const targetChars = [...target];
   const states: CharState[] = targetChars.map(() => "pending");

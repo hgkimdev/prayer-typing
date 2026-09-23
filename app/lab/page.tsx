@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TypingLine } from "@/components/typing/typing-line";
-import { compareLine } from "@/lib/typing/compare";
-import { useTypingEngine } from "@/lib/typing/use-typing-engine";
+import { composingChar } from "@/lib/typing/dubeolsik";
+import { useTypingSession } from "@/lib/typing/use-typing-session";
 import { cn } from "@/lib/utils";
 
 /**
- * IME 엔진 검증용 임시 페이지. 기도문이 아니라 판정이 깨지기 쉬운 자리를
+ * 오토마타 검증용 임시 페이지. 기도문이 아니라 판정이 깨지기 쉬운 자리를
  * 일부러 모아 둔 문장을 쓴다. 엔진이 확정되면 지운다.
  */
 const SAMPLES: { label: string; hint: string; lines: string[] }[] = [
@@ -28,8 +28,18 @@ const SAMPLES: { label: string; hint: string; lines: string[] }[] = [
     lines: ["왕관과 의자", "웬 과일 궤짝"],
   },
   {
+    label: "된소리",
+    hint: "ㄲㄸㅃㅆㅉ과 ㅒㅖ는 Shift로 한 번에 들어간다. 겹받침 ㄲ·ㅆ도 함께",
+    lines: ["꽃밭에 빨래를 깔끔히", "쌍둥이 얘기 예쁜 짝", "밖에서 있었다"],
+  },
+  {
+    label: "줄 경계",
+    hint: "앞 줄이 한글로 끝나고 다음 줄이 모음으로 시작한다. 연음이 줄을 넘는 자리",
+    lines: ["주님께서 함께 계시니", "여인 중에 복되시며"],
+  },
+  {
     label: "영문",
-    hint: "조합이 없는 경로. 줄 끝에서 곧바로 넘어가야 한다",
+    hint: "같은 자판을 자모가 아니라 알파벳으로 읽어야 하는 자리",
     lines: ["Hallowed be thy name", "on earth as it is in heaven"],
   },
 ];
@@ -37,27 +47,26 @@ const SAMPLES: { label: string; hint: string; lines: string[] }[] = [
 export default function LabPage() {
   const [sampleIndex, setSampleIndex] = useState(0);
   const sample = SAMPLES[sampleIndex];
-  const engine = useTypingEngine(sample.lines);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const session = useTypingSession(sample.lines);
+  const surfaceRef = useRef<HTMLDivElement>(null);
 
   // 샘플을 바꾸면 처음부터.
-  const { reset } = engine;
+  const { reset } = session;
   useEffect(() => {
     reset();
-    inputRef.current?.focus();
+    surfaceRef.current?.focus();
   }, [sampleIndex, reset]);
 
-  const caretIndex = [...engine.input].length;
+  const { ime } = session;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <header className="mb-6">
-        <h1 className="text-lg font-semibold">한글 IME 판정 실험실</h1>
+        <h1 className="text-lg font-semibold">한글 오토마타 실험실</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          조합 중인 글자는 <span className="text-char-composing font-medium">파란색</span>, 확정
-          오타는 <span className="text-char-wrong font-medium">빨간색</span>. 조합 중에 빨간색이
-          번쩍이면 판정이 틀린 것이다. 조합 중인 글자는 초성·중성·종성 자리에 따로 불이
-          들어온다 — 찍힌 자모는 진하게, 남은 자모는 흐리게.
+          OS의 IME를 타지 않고 물리 키를 직접 받아 글자를 만든다. 한/영 모드와 무관하게
+          똑같이 동작해야 한다 — 지금 쳐야 할 글자가 한글이면 자모로, 영문이면 알파벳으로
+          읽는다. 조합 중인 글자는 초성·중성·종성 자리에 따로 불이 들어온다.
         </p>
       </header>
 
@@ -81,56 +90,42 @@ export default function LabPage() {
       <p className="text-muted-foreground mb-6 text-sm">{sample.hint}</p>
 
       <div
-        className="bg-card relative cursor-text rounded-xl border p-6"
-        onClick={() => inputRef.current?.focus()}
+        ref={surfaceRef}
+        {...session.surfaceProps}
+        onClick={() => surfaceRef.current?.focus()}
+        role="group"
+        aria-label="타자 입력"
+        className="bg-card focus:border-ring relative cursor-text rounded-xl border p-6 outline-none"
       >
         <div className="space-y-3">
-          {sample.lines.map((line, i) => {
-            const isActive = i === engine.lineIndex && !engine.finished;
-            const states = isActive
-              ? engine.comparison.states
-              : i < engine.lineIndex
-                ? compareLine(line, line, false).states
-                : [];
-            return (
-              <TypingLine
-                key={i}
-                target={line}
-                states={states}
-                jamoCells={isActive ? engine.comparison.jamoCells : undefined}
-                active={isActive}
-                caretIndex={isActive ? caretIndex : undefined}
-                overflow={isActive ? engine.comparison.overflow : 0}
-              />
-            );
-          })}
+          {session.lines.map((line, i) => (
+            <TypingLine
+              key={i}
+              target={line.text}
+              states={line.states}
+              jamoCells={line.jamoCells}
+              active={line.active}
+              caretIndex={line.caretIndex}
+              overflow={line.overflow}
+            />
+          ))}
         </div>
-
-        <input
-          ref={inputRef}
-          {...engine.inputProps}
-          aria-label="타자 입력"
-          className="absolute inset-0 h-full w-full cursor-text opacity-0"
-        />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <span>
-          정확도 <strong>{Math.round(engine.stats.accuracy * 100)}%</strong>
+          정확도 <strong>{Math.round(session.stats.accuracy * 100)}%</strong>
         </span>
         <span>
-          분당 <strong>{engine.stats.cpm}</strong>자
+          분당 <strong>{session.stats.cpm}</strong>자
         </span>
-        <span className="text-muted-foreground">오타 {engine.stats.wrongCount}</span>
-        {engine.awaitingCommit && (
-          <span className="text-primary font-medium">줄 끝 — Enter로 확정</span>
-        )}
-        {engine.finished && <span className="text-primary font-medium">완료</span>}
+        <span className="text-muted-foreground">오타 {session.stats.wrongCount}</span>
+        {session.finished && <span className="text-primary font-medium">완료</span>}
         <button
           type="button"
           onClick={() => {
-            engine.reset();
-            inputRef.current?.focus();
+            session.reset();
+            surfaceRef.current?.focus();
           }}
           className="border-border hover:bg-muted ml-auto rounded-lg border px-3 py-1 text-sm"
         >
@@ -141,25 +136,26 @@ export default function LabPage() {
       <pre className="bg-muted text-muted-foreground mt-6 overflow-x-auto rounded-lg p-4 text-xs">
         {JSON.stringify(
           {
-            line: engine.lineIndex,
-            input: engine.input,
-            isComposing: engine.isComposing,
-            awaitingCommit: engine.awaitingCommit,
-            states: engine.comparison.states
-              .map((s) => ({ pending: ".", correct: "o", wrong: "X", composing: "~" })[s])
-              .join(""),
-            overflow: engine.comparison.overflow,
-            jamo: Object.fromEntries(
-              Object.entries(engine.comparison.jamoCells).map(([index, steps]) => [
-                index,
-                steps
-                  .map(
-                    (s) =>
-                      s.jamo +
-                      { done: "o", partial: "~", pending: ".", wrong: "X" }[s.state],
-                  )
-                  .join(" "),
-              ]),
+            line: session.lineIndex,
+            text: session.text,
+            // 오토마타가 지금 무엇을 들고 있는지. 여기가 곧 진실이다.
+            조합: { 초성: ime.cho, 중성: ime.jung, 종성: ime.jong, 글자: composingChar(ime) },
+            확정: ime.committed,
+            줄판정: session.lines.map((l) =>
+              l.states
+                .map((s) => ({ pending: ".", correct: "o", wrong: "X", composing: "~" })[s])
+                .join(""),
+            ),
+            넘겨친글자: session.lines.at(-1)?.overflow ?? 0,
+            자모: Object.fromEntries(
+              session.lines.flatMap((l, i) =>
+                Object.entries(l.jamoCells).map(([index, steps]) => [
+                  `${i}:${index}`,
+                  steps
+                    .map((s) => s.jamo + { done: "o", partial: "~", pending: ".", wrong: "X" }[s.state])
+                    .join(" "),
+                ]),
+              ),
             ),
           },
           null,
