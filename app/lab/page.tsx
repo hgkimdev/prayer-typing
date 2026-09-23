@@ -38,6 +38,11 @@ const SAMPLES: { label: string; hint: string; lines: string[] }[] = [
     lines: ["주님께서 함께 계시니", "여인 중에 복되시며"],
   },
   {
+    label: "기호",
+    hint: "마침표·쉼표·따옴표·괄호는 치지 않아도 채워진다. 공백은 그대로 쳐야 한다",
+    lines: ["아멘. 주님, 저희를 보소서!", "(괄호로 시작하는 줄) 그리고 끝."],
+  },
+  {
     label: "영문",
     hint: "같은 자판을 자모가 아니라 알파벳으로 읽어야 하는 자리",
     lines: ["Hallowed be thy name", "on earth as it is in heaven"],

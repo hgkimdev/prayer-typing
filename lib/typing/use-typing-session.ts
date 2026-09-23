@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isSyllable, type JamoStep } from "@/lib/hangul";
 import { compareText, type CharState } from "./compare";
+import { eraseOne, fillPunctuation, isPunctuation } from "./punctuation";
 import {
   EMPTY_IME,
   imeText,
   isComposing,
   keyToJamo,
-  pressBackspace,
   pressJamo,
   pressLiteral,
   type ImeState,
@@ -42,6 +42,8 @@ export type SessionLine = {
 export type TypingSession = {
   lines: SessionLine[];
   lineIndex: number;
+  /** 첫 글자를 쳤는가. 시계는 이때부터 간다. */
+  started: boolean;
   finished: boolean;
   stats: TypingStats;
   /** 지금까지 만들어진 글자 전체. 확정된 것 + 조합 중인 것. */
@@ -80,7 +82,7 @@ function latinOf(e: React.KeyboardEvent<HTMLElement>): string | null {
  * 글자**가 정한다 — 연습이라 목표를 언제나 알고 있으니 모드를 따로 둘 필요가 없다.
  */
 function step(state: ImeState, e: React.KeyboardEvent<HTMLElement>, target: string): ImeState | null {
-  if (e.key === "Backspace") return pressBackspace(state);
+  if (e.key === "Backspace") return eraseOne(state);
   if (e.code === "Space") return pressLiteral(state, " ");
 
   const typed = [...imeText(state)];
@@ -115,7 +117,9 @@ export function useTypingSession(lines: string[]): TypingSession {
     return out;
   }, [lines]);
 
-  const [ime, setIme] = useState<ImeState>(EMPTY_IME);
+  // 기호로 시작하는 줄이면 첫 키를 받기 전에 이미 채워져 있어야 한다.
+  const initialIme = useMemo(() => fillPunctuation(EMPTY_IME, target), [target]);
+  const [ime, setIme] = useState<ImeState>(initialIme);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   /** 한 번이라도 틀렸던 자리. 고쳐도 중복 가산되지 않는다. */
@@ -130,11 +134,11 @@ export function useTypingSession(lines: string[]): TypingSession {
   const finished = text === target;
 
   const reset = useCallback(() => {
-    setIme(EMPTY_IME);
+    setIme(initialIme);
     setStartedAt(null);
     setElapsedMs(0);
     setWrongCells(new Set());
-  }, []);
+  }, [initialIme]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
@@ -142,9 +146,12 @@ export function useTypingSession(lines: string[]): TypingSession {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (finished) return;
 
-      const next = step(ime, e, target);
-      if (!next) return;
+      const pressed = step(ime, e, target);
+      if (!pressed) return;
       e.preventDefault();
+
+      // 무르는 중에 기호를 도로 채우면 백스페이스가 먹히지 않는 것처럼 보인다.
+      const next = e.key === "Backspace" ? pressed : fillPunctuation(pressed, target);
 
       setStartedAt((prev) => prev ?? performance.now());
       setIme(next);
@@ -206,12 +213,15 @@ export function useTypingSession(lines: string[]): TypingSession {
     };
   });
 
-  const attempted = Math.min(typedCount, targetCount);
+  // 기호는 우리가 채웠으니 타속에도 정확도에도 넣지 않는다.
+  const reached = Math.min(typedCount, targetCount);
+  const attempted = [...target].slice(0, reached).filter((ch) => !isPunctuation(ch)).length;
   const wrongCount = wrongCells.size;
 
   return {
     lines: sessionLines,
     lineIndex,
+    started: startedAt !== null,
     finished,
     text,
     ime,

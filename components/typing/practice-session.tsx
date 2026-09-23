@@ -23,6 +23,11 @@ export function PracticeSession({ course }: { course: Course }) {
 
   const focus = () => surfaceRef.current?.focus();
 
+  // 클릭을 시작 의식으로 두지 않는다. 화면이 뜨면 바로 칠 수 있어야 한다.
+  useEffect(() => {
+    surfaceRef.current?.focus();
+  }, []);
+
   // 줄이 바뀌면 그 줄을 눈 높이로 끌어온다. 긴 기도문은 화면을 넘기 때문에
   // 손으로 스크롤하게 두면 연습이 끊긴다.
   useEffect(() => {
@@ -117,9 +122,15 @@ export function PracticeSession({ course }: { course: Course }) {
           ))}
         </div>
 
+        {/* 손을 뗀 동안만 가린다. 아직 시작 전이라면 가리지 않고 안내만 둔다. */}
         {!focused && !session.finished && (
           <div className="bg-card/80 absolute inset-0 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
-            <span className="text-muted-foreground text-sm">클릭하면 시작합니다</span>
+            <span className="text-muted-foreground text-sm">클릭하면 이어서 칩니다</span>
+          </div>
+        )}
+        {focused && !session.started && !session.finished && (
+          <div className="text-muted-foreground pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs">
+            첫 글자를 치면 시작합니다
           </div>
         )}
       </div>
