@@ -1,26 +1,142 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-char-pending: var(--char-pending);
+  --color-char-correct: var(--char-correct);
+  --color-char-wrong: var(--char-wrong);
+  --color-char-composing: var(--char-composing);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-prayer: var(--prayer-stack);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.65rem;
+
+  /* 한글을 구글 웹폰트로 받으면 서브셋이 1MB를 넘는다. 시스템 폰트로 충분하다. */
+  --prayer-stack:
+    var(--font-geist-sans), "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+
+  --background: oklch(0.99 0.004 85);
+  --foreground: oklch(0.24 0.012 65);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.46 0.09 265);
+  --primary-foreground: oklch(0.98 0.005 85);
+  --secondary: oklch(0.95 0.012 85);
+  --secondary-foreground: oklch(0.3 0.015 65);
+  --muted: oklch(0.96 0.008 85);
+  --muted-foreground: oklch(0.52 0.015 70);
+  --accent: oklch(0.94 0.02 85);
+  --accent-foreground: oklch(0.3 0.015 65);
+  --destructive: oklch(0.55 0.19 27);
+  --destructive-foreground: oklch(0.98 0.005 85);
+  --border: oklch(0.9 0.01 80);
+  --input: oklch(0.9 0.01 80);
+  --ring: oklch(0.46 0.09 265);
+
+  /* 타자 판정 4색. 조합 중(composing)은 정답도 오답도 아니므로 따로 둔다. */
+  --char-pending: oklch(0.72 0.012 70);
+  --char-correct: oklch(0.3 0.015 65);
+  --char-wrong: oklch(0.55 0.19 27);
+  --char-composing: oklch(0.55 0.11 250);
+}
+
+.dark {
+  --background: oklch(0.17 0.012 265);
+  --foreground: oklch(0.93 0.008 85);
+  --card: oklch(0.21 0.014 265);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.21 0.014 265);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.72 0.11 260);
+  --primary-foreground: oklch(0.18 0.014 265);
+  --secondary: oklch(0.26 0.016 265);
+  --secondary-foreground: oklch(0.9 0.008 85);
+  --muted: oklch(0.25 0.014 265);
+  --muted-foreground: oklch(0.67 0.014 265);
+  --accent: oklch(0.28 0.018 265);
+  --accent-foreground: oklch(0.93 0.008 85);
+  --destructive: oklch(0.68 0.17 25);
+  --destructive-foreground: oklch(0.18 0.014 265);
+  --border: oklch(0.3 0.016 265);
+  --input: oklch(0.32 0.016 265);
+  --ring: oklch(0.72 0.11 260);
+
+  --char-pending: oklch(0.45 0.014 265);
+  --char-correct: oklch(0.93 0.008 85);
+  --char-wrong: oklch(0.68 0.17 25);
+  --char-composing: oklch(0.75 0.12 250);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 입력 요소는 투명하게 덮여 있어 네이티브 캐럿이 보이지 않는다. 직접 그린다. */
+.caret-slot::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 0.12em;
+  bottom: 0.12em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--primary);
+  animation: caret-blink 1.1s steps(1, end) infinite;
+}
+
+/* JS로 분기하면 서버가 항상 false를 돌려줘 하이드레이션이 어긋난다. CSS로 끈다. */
+@media (prefers-reduced-motion: reduce) {
+  .caret-slot::before {
+    animation: none;
+  }
 }
