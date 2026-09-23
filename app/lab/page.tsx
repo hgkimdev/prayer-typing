@@ -66,7 +66,7 @@ export default function LabPage() {
         <p className="text-muted-foreground mt-1 text-sm">
           OS의 IME를 타지 않고 물리 키를 직접 받아 글자를 만든다. 한/영 모드와 무관하게
           똑같이 동작해야 한다 — 지금 쳐야 할 글자가 한글이면 자모로, 영문이면 알파벳으로
-          읽는다. 조합 중인 글자는 초성·중성·종성 자리에 따로 불이 들어온다.
+          읽는다. 조합 중인 칸에는 목표 대신 지금 만들어진 글자가 그대로 보인다.
         </p>
       </header>
 
@@ -103,7 +103,7 @@ export default function LabPage() {
               key={i}
               target={line.text}
               states={line.states}
-              jamoCells={line.jamoCells}
+              composed={line.composed}
               active={line.active}
               caretIndex={line.caretIndex}
               overflow={line.overflow}

@@ -170,8 +170,8 @@ export type JamoProgress = {
 /**
  * 조합 중인 글자가 목표 글자의 자모 중 어디까지 왔는지.
  *
- * `canBecome`은 참/거짓만 돌려주므로 "강"을 칠 때 ㄱ만 눌러도 글자 전체가 한 색이 된다.
- * 어디까지 왔는지 눈으로 보려면 자모 단위로 쪼갠 이 결과가 필요하다.
+ * `canBecome`은 참/거짓만 돌려주므로 어디서 어긋났는지 알 수 없다. 화면은 글자를
+ * 쪼개지 않지만, 판정이 맞는지 확인하려면 자모 단위로 쪼갠 이 결과가 필요하다.
  */
 export function jamoProgress(partial: string, target: string): JamoProgress | null {
   const t = decompose(target);
@@ -219,37 +219,6 @@ export function jamoProgress(partial: string, target: string): JamoProgress | nu
 
   if (t.jong) steps[2].state = "wrong";
   return done();
-}
-
-/** 모음이 초성 오른쪽에 붙는가(ㅏ), 아래에 깔리는가(ㅗ), 둘 다인가(ㅘ). */
-export type VowelShape = "vertical" | "horizontal" | "mixed";
-
-const JUNG_VERTICAL = "ㅏㅐㅑㅒㅓㅔㅕㅖㅣ";
-const JUNG_HORIZONTAL = "ㅗㅛㅜㅠㅡ";
-
-/**
- * 중성이 글자 네모 안에서 어느 자리를 차지하는지.
- *
- * 글자를 자모 영역으로 잘라 칠하려면 초성과 중성의 경계가 세로선인지 가로선인지
- * 알아야 한다. ㅘ·ㅢ 같은 복합 모음은 오른쪽과 아래를 함께 쓰므로 따로 둔다.
- */
-export function vowelShape(jung: string): VowelShape {
-  if (JUNG_VERTICAL.includes(jung)) return "vertical";
-  if (JUNG_HORIZONTAL.includes(jung)) return "horizontal";
-  return "mixed";
-}
-
-// ㅓ·ㅕ처럼 삐침이 초성 쪽(왼쪽)으로 뻗는 모음. ㅏ·ㅐ는 반대쪽으로 뻗는다.
-const JUNG_LEFT_TICK = "ㅓㅔㅕㅖㅝㅞ";
-
-/**
- * 모음의 짧은 삐침이 초성 쪽으로 뻗는가.
- *
- * 초성과 모음이 서로 닿아 있을 때 둘을 가르는 선을 어디에 둘지가 이것으로 갈린다.
- * 삐침이 초성 쪽으로 오면 그 삐침은 모음의 것이므로 선을 더 왼쪽에 둬야 한다.
- */
-export function hasLeftTick(jung: string): boolean {
-  return JUNG_LEFT_TICK.includes(jung);
 }
 
 /**

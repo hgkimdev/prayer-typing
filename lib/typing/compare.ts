@@ -1,4 +1,11 @@
-import { canBecome, jamoProgress, type JamoStep } from "@/lib/hangul";
+import {
+  canBecome,
+  composeSyllable,
+  decompose,
+  jamoProgress,
+  splitJong,
+  type JamoStep,
+} from "@/lib/hangul";
 
 export type CharState =
   /** 아직 입력이 닿지 않은 글자 */
@@ -19,9 +26,14 @@ export type TextComparison = {
   /** 입력이 목표와 완전히 같은가 */
   done: boolean;
   /**
-   * 자모 단위 진행도. 조합 중인 칸에만 들어간다.
+   * 목표 글자 대신 그 칸에 그릴 글자. 조합 중인 칸에만 들어간다.
    * 연음이 일어나면 다음 칸도 들어간다 — 받침이 이미 그쪽 초성으로 넘어갔기 때문에.
    * 그 다음 칸이 다음 줄의 첫 글자일 수도 있다. 여기서는 줄을 구분하지 않는다.
+   */
+  composedCells: Record<number, string>;
+  /**
+   * 자모 단위 진행도. 칸 구성은 `composedCells`와 같다.
+   * 화면은 글자를 쪼개지 않으므로 이것은 판정을 눈으로 확인하는 실험실용이다.
    */
   jamoCells: Record<number, JamoStep[]>;
 };
@@ -65,14 +77,31 @@ export function compareText(
     }
   }
 
+  const composedCells: Record<number, string> = {};
   const jamoCells: Record<number, JamoStep[]> = {};
   if (composingIndex >= 0 && composingIndex < targetChars.length) {
-    const progress = jamoProgress(inputChars[composingIndex], targetChars[composingIndex]);
+    const typed = inputChars[composingIndex];
+    // 조합 중인 칸에는 목표가 아니라 지금 만들어진 글자를 그린다. 글자가 ㅎ→하→한으로
+    // 자라나는 것 자체가 진행도라, 한 글자를 자모 자리로 잘라 칠할 일이 없다.
+    composedCells[composingIndex] = typed;
+
+    const progress = jamoProgress(typed, targetChars[composingIndex]);
     if (progress) {
       jamoCells[composingIndex] = progress.steps;
-      // 넘어간 자음은 이미 다음 글자의 초성이다. 그 칸도 진행 중으로 보여 준다.
       const nextIndex = composingIndex + 1;
-      if (progress.carry && nextIndex < targetChars.length) {
+      // 연음이 일어났다면 넘어간 자음은 이미 다음 글자의 초성이다. 화면에도 그렇게
+      // 나누어 그린다 — 이 칸에는 남는 글자만, 다음 칸에 넘어간 자음. (흙 → 흘 ㄱ)
+      if (
+        progress.carry &&
+        states[composingIndex] === "composing" &&
+        nextIndex < targetChars.length
+      ) {
+        const p = decompose(typed);
+        const stays = p?.jong ? (splitJong(p.jong)?.[0] ?? null) : null;
+        composedCells[composingIndex] = composeSyllable(p?.cho ?? null, p?.jung ?? null, stays);
+        composedCells[nextIndex] = progress.carry;
+        states[nextIndex] = "composing";
+
         const carried = jamoProgress(progress.carry, targetChars[nextIndex]);
         if (carried) jamoCells[nextIndex] = carried.steps;
       }
@@ -84,6 +113,7 @@ export function compareText(
     overflow: Math.max(0, inputChars.length - targetChars.length),
     wrongIndexes,
     done: input === target,
+    composedCells,
     jamoCells,
   };
 }

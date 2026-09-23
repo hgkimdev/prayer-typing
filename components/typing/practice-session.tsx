@@ -108,7 +108,7 @@ export function PracticeSession({ course }: { course: Course }) {
               <TypingLine
                 target={line.text}
                 states={line.states}
-                jamoCells={line.jamoCells}
+                composed={line.composed}
                 active={line.active}
                 caretIndex={line.caretIndex}
                 overflow={line.overflow}

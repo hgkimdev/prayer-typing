@@ -28,6 +28,9 @@ export type TypingStats = {
 export type SessionLine = {
   text: string;
   states: CharState[];
+  /** 목표 대신 그릴 글자. 조합 중인 칸에만 들어간다. */
+  composed: Record<number, string>;
+  /** 자모 단위 진행도. 화면에는 쓰이지 않고 실험실에서 들여다볼 때 쓴다. */
   jamoCells: Record<number, JamoStep[]>;
   active: boolean;
   /** 커서가 설 자리. 활성 줄이 아니면 undefined. */
@@ -180,6 +183,12 @@ export function useTypingSession(lines: string[]): TypingSession {
     const length = [...line].length;
     const active = i === lineIndex && !finished;
 
+    // 비교는 기도문 전체를 기준으로 매겨져 있다. 이 줄에 걸치는 칸만 줄 안 자리로 옮긴다.
+    const composed: Record<number, string> = {};
+    for (const [key, ch] of Object.entries(comparison.composedCells)) {
+      const local = Number(key) - offset;
+      if (local >= 0 && local < length) composed[local] = ch;
+    }
     const jamoCells: Record<number, JamoStep[]> = {};
     for (const [key, steps] of Object.entries(comparison.jamoCells)) {
       const local = Number(key) - offset;
@@ -189,6 +198,7 @@ export function useTypingSession(lines: string[]): TypingSession {
     return {
       text: line,
       states: comparison.states.slice(offset, offset + length),
+      composed,
       jamoCells,
       active,
       caretIndex: active ? caret - offset : undefined,
